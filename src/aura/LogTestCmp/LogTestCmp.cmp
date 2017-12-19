@@ -1,0 +1,10 @@
+<aura:component implements="flexipage:availableForAllPageTypes" extends="c:LightningLog" controller="ControllerForLightning">
+
+	<aura:set attribute="notifyOnError" value="TRUE"/>
+
+	<div>Device: {!v.devicetype}</div>
+
+	<div>
+		<lightning:button variant="brand" label="Click Me!" onclick="{!c.doSomething}"/>
+	</div>
+</aura:component>
