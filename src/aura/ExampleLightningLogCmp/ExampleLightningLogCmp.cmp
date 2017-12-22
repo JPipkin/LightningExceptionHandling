@@ -1,6 +1,6 @@
 <aura:component implements="flexipage:availableForAllPageTypes" extends="c:LightningLog" controller="ControllerForLightning">
 
-	<aura:set attribute="notifyOnError" value="TRUE"/>
+	<aura:set attribute="emailOnError" value="TRUE"/>
 
 	<div>Device: {!v.devicetype}</div>
 

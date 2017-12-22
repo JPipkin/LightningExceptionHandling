@@ -27,7 +27,7 @@ public class LogTest {
 		Log.log('print unserializable object',new SelectOption('Test','Test'));
 		System.assertEquals(3,log.entries.size());	
 		Integer cnt = 0;
-		LightningLogAgent lla = new LightningLogAgent();
+		DeviceInformation lla = new DeviceInformation();
 		lla.devicetype = 'device';
 		lla.os = 'os';
 		lla.mobiletouch = true;
@@ -38,7 +38,7 @@ public class LogTest {
 			}
 			catch(LogTestException e){
 				try{
-					log.notify(e,lns.MasterLabel,lla,Log.ErrorType.ERROR);
+					log.notify(e,lns.MasterLabel,lla);
 				}
 				catch(System.EmailException ee){
 					if(!ee.getMessage().containsIgnoreCase('SINGLE_EMAIL_LIMIT_EXCEEDED')){
@@ -49,12 +49,23 @@ public class LogTest {
 			}
 		}	
 
-		LightningLogAgent lla2 = LightningLogAgent.deserialize(JSON.serialize(lla));
+		DeviceInformation lla2 = DeviceInformation.deserialize(JSON.serialize(lla));
 		System.assert(lla.browser == lla2.browser);
 		System.assert(lla.os == lla2.os);
 		System.assert(lla.mobiletouch == lla2.mobiletouch);
 		System.assert(lla.devicetype == lla2.devicetype);
 		System.assert(lla.auraerror == lla2.auraerror);
+
+		String appn = [Select MasterLabel from Log_Notification_Settings__mdt LIMIT 1].MasterLabel;
+
+		Database.SaveResult[] sr = Database.insert(new Account[]{new Account()},false);
+		Log.notify(sr,appn,lla2);
+		Database.UpsertResult[] ur = Database.upsert(new Account[]{new Account()},false);
+		Log.notify(ur,appn,lla2);
+
+		Log.notify(new Contact(),appn,null);
+
+		Log.notify(appn,'Test Email Body','Test Subject');
 	}
 
 	static testMethod void negative(){
@@ -67,7 +78,7 @@ public class LogTest {
 			}
 			catch(LogTestException e){
 				try{
-					log.notify(e,lns.MasterLabel,Log.ErrorType.ERROR);
+					log.notify(e,lns.MasterLabel);
 				}
 				catch(System.EmailException ee){
 					if(!ee.getMessage().containsIgnoreCase('SINGLE_EMAIL_LIMIT_EXCEEDED')){

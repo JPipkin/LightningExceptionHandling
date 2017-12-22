@@ -16,19 +16,19 @@
 *
  */
 
-global class LightningLogAgent {
-	@AuraEnabled global String deviceType;
-	@AuraEnabled global String os;
-	@AuraEnabled global Boolean mobileTouch;
-	@AuraEnabled global String browser;
-	@AuraEnabled global String auraerror;
+global class DeviceInformation {
+    @AuraEnabled global String deviceType;
+    @AuraEnabled global String os;
+    @AuraEnabled global Boolean mobileTouch;
+    @AuraEnabled global String browser;
+    @AuraEnabled global String auraerror;
 
-	/**
-	 * deserializes json string to object instance
-	 * @param  jsonstr [json of LightningLogAgent]
-	 * @return         [LightningLogAgent instance]
-	 */
-	global static LightningLogAgent deserialize(String jsonstr){
-		return (LightningLogAgent) JSON.deserialize(jsonstr,LightningLogAgent.class);
-	}
+    /**
+     * deserializes json string to object instance
+     * @param  jsonstr [json of LightningLogAgent]
+     * @return         [LightningLogAgent instance]
+     */
+    global static DeviceInformation deserialize(String jsonstr){
+        return (DeviceInformation) JSON.deserialize(jsonstr,DeviceInformation.class);
+    }
 }

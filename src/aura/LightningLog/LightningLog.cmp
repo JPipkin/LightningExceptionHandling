@@ -20,8 +20,8 @@
 <aura:component extensible="true" access="GLOBAL" controller="Log">
 	<!-- global attributes -->
     <aura:attribute name="devicetype" type="String" access="GLOBAL" description="PHONE/TABLET/DESKTOP"/>
-	<aura:attribute name="deviceinfo" type="LightningLogAgent" access="GLOBAL" description="details about device and broswer"/>
-	<aura:attribute name="notifyOnError" type="Boolean" default="TRUE" access="GLOBAL" description="Determines if an email notification should be sent out if this component breaks"/>
+	<aura:attribute name="deviceinfo" type="DeviceInformation" access="GLOBAL" description="details about device and broswer"/>
+	<aura:attribute name="emailOnError" type="Boolean" default="TRUE" access="GLOBAL" description="Determines if an email notification should be sent out if this component breaks"/>
 
 	<!-- init handler -->
 	<aura:handler name="init" value="{!this}" action="{!c.init}"/>

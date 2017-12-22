@@ -38,6 +38,7 @@
 	// displays error toast
 	error : function(component, event, helper){
 		var m = event.getParam('arguments').msg;
+		var mode = event.getParam('arguments').mode || 'sticky';
 		helper.showError(m);
 	}
 })

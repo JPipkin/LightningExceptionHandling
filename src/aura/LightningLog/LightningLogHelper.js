@@ -62,7 +62,7 @@
 		action.setParams({
 			'userAgent' : navigator.userAgent,
 			'devicetype' : dt,
-			'notify' : component.get('v.notifyOnError')
+			'notify' : component.get('v.emailOnError')
 		})
 
 		action.setCallback(this,function(result){

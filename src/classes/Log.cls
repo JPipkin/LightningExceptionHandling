@@ -23,11 +23,11 @@ public class Log {
 	 * @param  userAgent  [user-agent]
 	 * @param  devicetype [mobile/tablet/desktop]
 	 * @param  notify     [send error email on error]
-	 * @return            [LightningLogAgent]
+	 * @return            [DeviceInformation]
 	 */
 	@AuraEnabled
-	public static LightningLogAgent getDeviceInformation(String userAgent, String devicetype, Boolean notify){
-		LightningLogAgent agent = new LightningLogAgent();
+	public static DeviceInformation getDeviceInformation(String userAgent, String devicetype, Boolean notify){
+		DeviceInformation agent = new DeviceInformation();
 		try{
 			Log.log('userAgent = ' + userAgent);
 			if(userAgent == null || userAgent == ''){
@@ -44,7 +44,7 @@ public class Log {
 		catch(Exception e){
 			agent.auraerror = e.getMessage();
 			if(notify){
-				Log.notify(e, 'General', agent, ErrorType.ERROR);
+				Log.notify(e, 'General', agent);
 			}
 		}
 		return agent;
@@ -65,16 +65,12 @@ public class Log {
 		private set;
 	}
 
-	public ENUM ErrorType {WARN, ERROR}
-
 	/**
 	 * stores debug statement and prints to debug log
 	 * @param msg [debug statement]
 	 */
 	public static void log(String msg){
-		LogEntry le = new LogEntry(msg);
-		start(le.msg);
-		entries.add(le);
+		add(new LogEntry(msg));
 	}
 
 	/**
@@ -83,38 +79,71 @@ public class Log {
 	 * @param o   [debug statement object to serialize]
 	 */
 	public static void log(String msg, Object o){
-		LogEntry le = new LogEntry(msg,o);
-		start(le.msg);
-		entries.add(le);
+		add(new LogEntry(msg,o));
 	}
 
 	/**
 	 * inits data
 	 * @param msg [debug statement]
 	 */
-	static void start(String msg){
+	static void add(LogEntry le){
 		if(entries == null) entries = new List<LogEntry>();
-		System.debug(msg);
+		System.debug(le.msg);
+		entries.add(le);
 	}
 
-	public static void notify(Exception e, String appName, ErrorType et){
-		notify(e, appName, null, et);
+	public static void notify(Exception e, String appName){
+		notify(e, appName, null);
 	}
 
 	/**
 	 * sends email on error to email addresses defined in given app's custom metadta settings
 	 * @param e       [exception]
 	 * @param appName [name of application]
+	 * @param lla     [DeviceInformation wrapper]
 	 */
-	public static void notify(Exception e, String appName, LightningLogAgent lla, ErrorType et){
-		Log.log('in notify: ' + et.name());
-		if(et == ErrorType.WARN) return;
+	public static void notify(Object obj, String appName, DeviceInformation lla){
 		Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
-		mail.setPlainTextBody(buildBody(e,lla));
 		mail.setSubject('Exception handled on ' + appName);
-		Log_Notification_Settings__mdt settings = [Select Email_On_Error__c from Log_Notification_Settings__mdt where MasterLabel=:appName];
-		List<String> toAddresses = settings.Email_On_Error__c.split(',');
+		Log_Notification_Settings__mdt[] settings = [Select Email_On_Error__c from Log_Notification_Settings__mdt where MasterLabel=:appName];
+		if(settings.isEmpty()) return;
+		if(settings[0].Email_On_Error__c == null) return;
+		List<String> toAddresses = settings[0].Email_On_Error__c.split(',');
 		mail.setToAddresses(toAddresses);
+
+		if(obj instanceof Database.SaveResult[]){
+			List<Database.SaveResult> lstSR = (new List<Database.SaveResult>());
+			for(Database.SaveResult sr : (Database.SaveResult[])obj){
+				if(!sr.isSuccess()){
+					lstSR.add(sr);
+				}
+			}
+			if(lstSR.isEmpty()) return;
+			obj = lstSR;
+		}
+		else if(obj instanceof Database.UpsertResult[]){
+			List<Database.UpsertResult> lstUR = (new List<Database.UpsertResult>());
+			for(Database.UpsertResult sr : (Database.UpsertResult[])obj){
+				if(!sr.isSuccess()){
+					lstUR.add(sr);
+				}
+			}
+			if(lstUR.isEmpty()) return;
+			obj = lstUR;
+		}
+		mail.setPlainTextBody(buildBody(obj,lla));
+		Messaging.sendEmail(new Messaging.SingleEmailMessage[]{mail});
+	}
+	
+	public static void notify(String appName, String emailbody, String subject){
+		Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+		mail.setSubject(subject);
+		Log_Notification_Settings__mdt[] settings = [Select Email_On_Error__c from Log_Notification_Settings__mdt where MasterLabel=:appName];
+		if(settings.isEmpty()) return;
+		if(settings[0].Email_On_Error__c == null) return;
+		List<String> toAddresses = settings[0].Email_On_Error__c.split(',');
+		mail.setToAddresses(toAddresses);
+		mail.setPlainTextBody(emailbody);
 		Messaging.sendEmail(new Messaging.SingleEmailMessage[]{mail});
 	}
 
@@ -123,13 +152,41 @@ public class Log {
 	 * @param  e [Exception]
 	 * @return   [plain text email body]
 	 */
-	static String buildBody(Exception e, LightningLogAgent lla){
+	static String buildBody(Object eo, DeviceInformation lla){
 		// get info from exception object
 		String emailBody = '******* Exception Details *******\n';
-		emailBody += 'Type: ' + e.getTypeName() + '\n';
-		emailBody += 'Message: ' + e.getMessage() + '\n';
-		emailBody += 'Stack Trace: ' + e.getStackTraceString() + '\n';
-		emailBody += 'Line Number: ' + e.getLineNumber() + '\n';
+		if(eo instanceof Exception){
+			Exception e = (Exception) eo;
+			emailBody += 'Type: ' + e.getTypeName() + '\n';
+			emailBody += 'Message: ' + e.getMessage() + '\n';
+			emailBody += 'Stack Trace: ' + e.getStackTraceString() + '\n';
+			emailBody += 'Line Number: ' + e.getLineNumber() + '\n';
+		}
+		else if(eo instanceof Database.SaveResult[]){
+			for(Database.SaveResult sr :(Database.SaveResult[]) eo){
+				emailbody += 'ERROR ON RECORD:\n';
+				emailBody += 'Record Id: ' + sr.getId() + '\n';
+				emailbody += 'Errors:\n';
+				for(Database.Error de : sr.getErrors()){
+					emailbody += '- ' + de.getMessage() + ' [' + String.join(de.getFields(),', ') + ']\n';
+				}
+				emailBody += '\n';
+			}
+		}
+		else if(eo instanceof Database.UpsertResult[]){
+			for(Database.UpsertResult sr :(Database.UpsertResult[]) eo){
+				emailbody += 'ERROR ON RECORD:\n';
+				emailBody += 'Record Id: ' + sr.getId() + '\n';
+				emailbody += 'Errors:\n';
+				for(Database.Error de : sr.getErrors()){
+					emailbody += '- ' + de.getMessage() + ' [' + String.join(de.getFields(),', ') + ']\n';
+				}
+				emailBody += '\n';
+			}
+		}
+		else{
+			emailbody += JSON.serializePretty(eo) + '\n';
+		}
 		emailBody += '\n\n';
 
 		// get items from LogEntry list
@@ -157,6 +214,7 @@ public class Log {
 			emailBody += 'Current Page: ' + URL.getCurrentRequestUrl().getPath() + '\n';
         }
         else if(l.userAgent != ''){
+
 			// other various helpful information
 			emailBody += '******* Other Details *******\n';
 			emailBody += 'Browser: ' + l.getBrowser() + '\n';
